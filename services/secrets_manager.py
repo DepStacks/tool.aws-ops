@@ -16,9 +16,14 @@ logger = logging.getLogger(__name__)
 class SecretsManagerService(AWSServiceBase):
     """Manages AWS Secrets Manager operations across multiple accounts"""
     
-    def _get_client(self, role_arn: Optional[str] = None, region: Optional[str] = None):
+    def _get_client(
+        self,
+        role_arn: Optional[str] = None,
+        region: Optional[str] = None,
+        profile: Optional[str] = None
+    ):
         """Get Secrets Manager client"""
-        return self._get_aws_client('secretsmanager', role_arn, region)
+        return self._get_aws_client('secretsmanager', role_arn, region, profile)
     
     async def create_secret(
         self,
@@ -27,7 +32,8 @@ class SecretsManagerService(AWSServiceBase):
         description: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Create a new secret in AWS Secrets Manager.
@@ -39,12 +45,13 @@ class SecretsManagerService(AWSServiceBase):
             tags: Optional tags as key-value pairs
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with creation status and secret ARN
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             params = {
                 'Name': name,
@@ -84,7 +91,8 @@ class SecretsManagerService(AWSServiceBase):
         version_id: Optional[str] = None,
         version_stage: Optional[str] = None,
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Retrieve the value of a secret.
@@ -95,12 +103,13 @@ class SecretsManagerService(AWSServiceBase):
             version_stage: Optional version stage (e.g., AWSCURRENT, AWSPREVIOUS)
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with secret value and metadata
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             params = {'SecretId': secret_id}
             
@@ -152,7 +161,8 @@ class SecretsManagerService(AWSServiceBase):
         secret_value: str,
         description: Optional[str] = None,
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Update an existing secret's value.
@@ -163,12 +173,13 @@ class SecretsManagerService(AWSServiceBase):
             description: Optional new description
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with update status
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             params = {
                 'SecretId': secret_id,
@@ -205,7 +216,8 @@ class SecretsManagerService(AWSServiceBase):
         recovery_window_in_days: int = 30,
         force_delete_without_recovery: bool = False,
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Delete a secret from AWS Secrets Manager.
@@ -216,12 +228,13 @@ class SecretsManagerService(AWSServiceBase):
             force_delete_without_recovery: If True, delete immediately without recovery
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with deletion status
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             params = {'SecretId': secret_id}
             
@@ -257,7 +270,8 @@ class SecretsManagerService(AWSServiceBase):
         max_results: int = 500,
         include_planned_deletion: bool = False,
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         List secrets in AWS Secrets Manager.
@@ -268,12 +282,13 @@ class SecretsManagerService(AWSServiceBase):
             include_planned_deletion: Include secrets scheduled for deletion
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with list of secrets
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             params = {'MaxResults': min(max_results, 100)}
             
@@ -329,7 +344,8 @@ class SecretsManagerService(AWSServiceBase):
         self,
         secret_id: str,
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Get metadata about a secret (without the secret value).
@@ -338,12 +354,13 @@ class SecretsManagerService(AWSServiceBase):
             secret_id: Secret name or ARN
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with secret metadata
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             response = client.describe_secret(SecretId=secret_id)
             
@@ -379,7 +396,8 @@ class SecretsManagerService(AWSServiceBase):
         self,
         secret_id: str,
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Restore a previously deleted secret.
@@ -388,12 +406,13 @@ class SecretsManagerService(AWSServiceBase):
             secret_id: Secret name or ARN
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with restore status
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             response = client.restore_secret(SecretId=secret_id)
             
@@ -420,7 +439,8 @@ class SecretsManagerService(AWSServiceBase):
         secret_id: str,
         tags: Dict[str, str],
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Add or update tags on a secret.
@@ -430,12 +450,13 @@ class SecretsManagerService(AWSServiceBase):
             tags: Tags as key-value pairs
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with tagging status
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             client.tag_resource(
                 SecretId=secret_id,
@@ -464,7 +485,8 @@ class SecretsManagerService(AWSServiceBase):
         secret_id: str,
         tag_keys: List[str],
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Remove tags from a secret.
@@ -474,12 +496,13 @@ class SecretsManagerService(AWSServiceBase):
             tag_keys: List of tag keys to remove
             role_arn: IAM role ARN to assume for this operation
             region: AWS region (defaults to AWS_REGION)
+            profile: AWS profile name from ~/.aws/credentials
             
         Returns:
             Dictionary with untagging status
         """
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             
             client.untag_resource(
                 SecretId=secret_id,

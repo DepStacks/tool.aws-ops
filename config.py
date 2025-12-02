@@ -56,6 +56,41 @@ def list_configured_accounts() -> Dict[str, str]:
     return accounts
 
 
+def get_account_profile(account_name: str) -> Optional[str]:
+    """
+    Get pre-configured AWS profile for a named account.
+    
+    Environment variable format: ACCOUNT_{NAME}_PROFILE
+    
+    Args:
+        account_name: Name of the account (e.g., 'production', 'staging')
+        
+    Returns:
+        Profile name if configured, None otherwise
+    """
+    name = account_name.upper().replace('-', '_')
+    return os.getenv(f'ACCOUNT_{name}_PROFILE')
+
+
+def list_configured_profiles() -> Dict[str, str]:
+    """
+    List all pre-configured account profile mappings.
+    
+    Returns:
+        Dictionary mapping account names to profile names
+    """
+    profiles = {}
+    
+    for key, value in os.environ.items():
+        if key.startswith('ACCOUNT_') and key.endswith('_PROFILE'):
+            # Extract account name from ACCOUNT_{NAME}_PROFILE
+            name_part = key[8:-8]  # Remove 'ACCOUNT_' prefix and '_PROFILE' suffix
+            account_name = name_part.lower().replace('_', '-')
+            profiles[account_name] = value
+    
+    return profiles
+
+
 def get_server_config() -> Dict[str, Any]:
     """
     Get server configuration settings.
@@ -66,5 +101,6 @@ def get_server_config() -> Dict[str, Any]:
     return {
         'aws_region': get_aws_region(),
         'mcp_auth_token': get_mcp_auth_token(),
-        'configured_accounts': list_configured_accounts()
+        'configured_accounts': list_configured_accounts(),
+        'configured_profiles': list_configured_profiles()
     }

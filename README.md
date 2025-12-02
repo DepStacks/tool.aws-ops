@@ -15,8 +15,9 @@ FastMCP server for AWS operations across multiple accounts. Provides comprehensi
 - **Tag/Untag secrets** for organization
 
 ### Multi-Account Support
-- **AssumeRole** based authentication for cross-account access
-- **Per-request role ARN** provided by LLM
+- **AssumeRole** based authentication for cross-account access (production)
+- **AWS Profiles** support for local development (~/.aws/credentials)
+- **Per-request authentication** - role_arn or profile provided per tool call
 - **Pre-configured account mappings** via environment variables
 - **No stored credentials** - maximum security
 
@@ -32,15 +33,15 @@ FastMCP server for AWS operations across multiple accounts. Provides comprehensi
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    MCP Server (EKS)                           │
+│                    MCP Server (EKS)                          │
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │  IRSA Role: aws-ops-mcp (sts:AssumeRole permission)    │  │
 │  └────────────────────────────────────────────────────────┘  │
-│                              │                                │
-│           Each tool call includes: role_arn                   │
-│                              ▼                                │
+│                              │                               │
+│           Each tool call includes: role_arn                  │
+│                              ▼                               │
 │  ┌────────────────────────────────────────────────────────┐  │
-│  │                   STS AssumeRole                        │  │
+│  │                   STS AssumeRole                       │  │
 │  └────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────┘
                                │
@@ -108,6 +109,7 @@ List all pre-configured AWS accounts with their role ARNs.
 Create a new secret in AWS Secrets Manager.
 
 ```python
+# Using AssumeRole (production)
 {
     "name": "prod/myapp/database",
     "secret_value": "{\"username\":\"admin\",\"password\":\"secret\"}",
@@ -116,15 +118,30 @@ Create a new secret in AWS Secrets Manager.
     "role_arn": "arn:aws:iam::111111111111:role/aws-ops-target",
     "region": "us-east-1"
 }
+
+# Using AWS Profile (local development)
+{
+    "name": "staging/myapp/database",
+    "secret_value": "{\"username\":\"admin\",\"password\":\"secret\"}",
+    "profile": "staging",
+    "region": "us-east-1"
+}
 ```
 
 #### `get_secret_value`
 Retrieve the value of a secret.
 
 ```python
+# Using AssumeRole
 {
     "secret_id": "prod/myapp/database",
     "role_arn": "arn:aws:iam::111111111111:role/aws-ops-target"
+}
+
+# Using AWS Profile
+{
+    "secret_id": "staging/myapp/database",
+    "profile": "staging"
 }
 ```
 
@@ -160,10 +177,27 @@ AWS_REGION=us-east-1
 # MCP Authentication Token (required for API access)
 MCP_AUTH_TOKEN=your-secret-token
 
-# Pre-configured Account Role ARNs (Optional)
+# Pre-configured Account Role ARNs (Production - AssumeRole)
 ACCOUNT_PRODUCTION_ROLE_ARN=arn:aws:iam::111111111111:role/aws-ops-target
 ACCOUNT_STAGING_ROLE_ARN=arn:aws:iam::222222222222:role/aws-ops-target
+
+# Pre-configured Account Profiles (Local Development - ~/.aws/credentials)
+ACCOUNT_PRODUCTION_PROFILE=prod
+ACCOUNT_STAGING_PROFILE=staging
+ACCOUNT_DEVELOPMENT_PROFILE=dev
 ```
+
+### Authentication Methods
+
+All tools support three authentication methods:
+
+| Method | Parameter | Use Case |
+|--------|-----------|----------|
+| **Profile** | `profile="staging"` | Local development with ~/.aws/credentials |
+| **AssumeRole** | `role_arn="arn:aws:iam::..."` | Production with IRSA |
+| **Default** | (none) | Uses environment credentials |
+
+**Priority**: `profile` > `role_arn` > default credentials
 
 ### Target Account Setup
 

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-FastMCP HTTP server for AWS operations across multiple accounts. Provides SREs with tools for Secrets Manager, Route53, S3, and other AWS services with multi-account support via AssumeRole.
+FastMCP HTTP server for AWS operations across multiple accounts. Provides SREs with tools for Secrets Manager, Route53, S3, and other AWS services with multi-account support via AssumeRole and AWS Profiles.
 
 ## Architecture
 
@@ -14,20 +14,20 @@ FastMCP HTTP server for AWS operations across multiple accounts. Provides SREs w
    - Routes requests to appropriate service managers
 
 2. **services/** - Modular AWS service managers
-   - `base.py` - Base class with AssumeRole support
+   - `base.py` - Base class with AssumeRole and Profile support
    - `secrets_manager.py` - Secrets Manager CRUD operations
    - Future: `route53.py`, `s3.py`, `ec2.py`, etc.
 
 3. **config.py** - Configuration Management
    - Loads settings from environment variables
-   - Role ARN mappings for accounts
+   - Role ARN and Profile mappings for accounts
    - Uses python-dotenv for `.env` file support
 
 ### Multi-Account Authentication Model
 
 **CRITICAL SECURITY PATTERN**:
 
-1. **Base Role (IRSA)**:
+1. **Base Role (IRSA)** - Production:
    - EKS ServiceAccount with IAM Role
    - Has `sts:AssumeRole` permission only
    - No direct AWS service permissions
@@ -37,9 +37,24 @@ FastMCP HTTP server for AWS operations across multiple accounts. Provides SREs w
    - LLM provides `role_arn` per tool call
    - Maximum flexibility: credentials only exist in memory during request
 
-3. **AssumeRole Flow**:
+3. **AWS Profiles** - Local Development:
+   - Uses `~/.aws/credentials` profiles
+   - LLM provides `profile` per tool call
+   - Ideal for local testing with multiple accounts
+
+4. **Authentication Priority**:
+   ```
+   profile (if provided) → role_arn (if provided) → default credentials
+   ```
+
+5. **AssumeRole Flow** (Production):
    ```
    Request → Base Role → STS AssumeRole → Target Role → AWS Service
+   ```
+
+6. **Profile Flow** (Local Development):
+   ```
+   Request → ~/.aws/credentials → Named Profile → AWS Service
    ```
 
 ### Transport
@@ -64,18 +79,19 @@ from .base import AWSServiceBase
 class ServiceNameManager(AWSServiceBase):
     """Manages AWS {ServiceName} operations"""
     
-    def _get_client(self, role_arn: Optional[str] = None, region: Optional[str] = None):
-        return self._get_aws_client('servicename', role_arn, region)
+    def _get_client(self, role_arn: Optional[str] = None, region: Optional[str] = None, profile: Optional[str] = None):
+        return self._get_aws_client('servicename', role_arn, region, profile)
     
     async def operation_name(
         self,
         param1: str,
         role_arn: Optional[str] = None,
-        region: Optional[str] = None
+        region: Optional[str] = None,
+        profile: Optional[str] = None
     ) -> Dict[str, Any]:
         """Describe the operation"""
         try:
-            client = self._get_client(role_arn, region)
+            client = self._get_client(role_arn, region, profile)
             response = client.operation(...)
             return {"success": True, "data": response}
         except Exception as e:
@@ -93,10 +109,11 @@ service_manager = ServiceNameManager()
 async def operation_name(
     param1: str,
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """Tool description for LLM"""
-    return await service_manager.operation_name(param1, role_arn, region)
+    return await service_manager.operation_name(param1, role_arn, region, profile)
 ```
 
 ### Step 3: Update Documentation
@@ -130,9 +147,13 @@ AWS_REGION=us-east-1
 # MCP Authentication
 MCP_AUTH_TOKEN=your-secret-token
 
-# Optional: Pre-configured role ARN mappings
+# Optional: Pre-configured role ARN mappings (Production)
 ACCOUNT_PRODUCTION_ROLE_ARN=arn:aws:iam::111111111111:role/aws-ops-target
 ACCOUNT_STAGING_ROLE_ARN=arn:aws:iam::222222222222:role/aws-ops-target
+
+# Optional: Pre-configured profile mappings (Local Development)
+ACCOUNT_PRODUCTION_PROFILE=prod
+ACCOUNT_STAGING_PROFILE=staging
 ```
 
 ### Target Account Setup
@@ -157,12 +178,13 @@ Each target AWS account needs:
 
 ## Security Considerations
 
-1. **Never use AWS access keys** - Use IRSA and AssumeRole
+1. **Never use AWS access keys** - Use IRSA and AssumeRole in production
 2. **Least privilege** - Target roles have minimum permissions
-3. **Per-request authentication** - role_arn provided by LLM
+3. **Per-request authentication** - role_arn or profile provided per call
 4. **Audit trail** - CloudTrail logs all assumed role actions
 5. **MCP API authentication** - Bearer token required
 6. **TLS encryption** - HTTPS only in production
+7. **Profile for dev only** - Use profiles only in local development
 
 ## Development Workflow
 

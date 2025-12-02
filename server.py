@@ -19,7 +19,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional, List, Dict, Any
 
 from services.secrets_manager import SecretsManagerService
-from config import get_mcp_auth_token, list_configured_accounts, get_aws_region
+from config import get_mcp_auth_token, list_configured_accounts, list_configured_profiles, get_aws_region
 
 # Initialize FastMCP server
 mcp = FastMCP("aws-ops")
@@ -116,19 +116,22 @@ async def list_accounts(
     region: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    List all pre-configured AWS accounts with their role ARNs.
+    List all pre-configured AWS accounts with their role ARNs and profiles.
     
     Args:
         region: AWS region to use as default (defaults to AWS_REGION env var)
     
     Returns:
-        Dictionary with configured accounts and default region
+        Dictionary with configured accounts, profiles, and default region
     """
     accounts = list_configured_accounts()
+    profiles = list_configured_profiles()
     return {
         "success": True,
         "accounts": accounts,
-        "count": len(accounts),
+        "profiles": profiles,
+        "accounts_count": len(accounts),
+        "profiles_count": len(profiles),
         "default_region": region or get_aws_region()
     }
 
@@ -144,7 +147,8 @@ async def create_secret(
     description: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Create a new secret in AWS Secrets Manager.
@@ -156,6 +160,7 @@ async def create_secret(
         tags: Optional tags as key-value pairs
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with creation status and secret ARN
@@ -166,7 +171,8 @@ async def create_secret(
         description=description,
         tags=tags,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
@@ -176,7 +182,8 @@ async def get_secret_value(
     version_id: Optional[str] = None,
     version_stage: Optional[str] = None,
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Retrieve the value of a secret from AWS Secrets Manager.
@@ -187,6 +194,7 @@ async def get_secret_value(
         version_stage: Optional version stage (AWSCURRENT, AWSPREVIOUS)
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with secret value and metadata
@@ -196,7 +204,8 @@ async def get_secret_value(
         version_id=version_id,
         version_stage=version_stage,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
@@ -206,7 +215,8 @@ async def update_secret(
     secret_value: str,
     description: Optional[str] = None,
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Update an existing secret's value in AWS Secrets Manager.
@@ -217,6 +227,7 @@ async def update_secret(
         description: Optional new description
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with update status
@@ -226,7 +237,8 @@ async def update_secret(
         secret_value=secret_value,
         description=description,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
@@ -236,7 +248,8 @@ async def delete_secret(
     recovery_window_in_days: int = 30,
     force_delete_without_recovery: bool = False,
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Delete a secret from AWS Secrets Manager.
@@ -247,6 +260,7 @@ async def delete_secret(
         force_delete_without_recovery: If True, delete immediately without recovery
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with deletion status
@@ -256,7 +270,8 @@ async def delete_secret(
         recovery_window_in_days=recovery_window_in_days,
         force_delete_without_recovery=force_delete_without_recovery,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
@@ -266,7 +281,8 @@ async def list_secrets(
     max_results: int = 500,
     include_planned_deletion: bool = False,
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     List secrets in AWS Secrets Manager.
@@ -277,6 +293,7 @@ async def list_secrets(
         include_planned_deletion: Include secrets scheduled for deletion
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with list of secrets
@@ -290,7 +307,8 @@ async def list_secrets(
         max_results=max_results,
         include_planned_deletion=include_planned_deletion,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
@@ -298,7 +316,8 @@ async def list_secrets(
 async def describe_secret(
     secret_id: str,
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Get metadata about a secret (without the secret value).
@@ -307,6 +326,7 @@ async def describe_secret(
         secret_id: Secret name or ARN
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with secret metadata (rotation, tags, versions, etc.)
@@ -314,7 +334,8 @@ async def describe_secret(
     return await secrets_manager.describe_secret(
         secret_id=secret_id,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
@@ -322,7 +343,8 @@ async def describe_secret(
 async def restore_secret(
     secret_id: str,
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Restore a previously deleted secret (within recovery window).
@@ -331,6 +353,7 @@ async def restore_secret(
         secret_id: Secret name or ARN
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with restore status
@@ -338,7 +361,8 @@ async def restore_secret(
     return await secrets_manager.restore_secret(
         secret_id=secret_id,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
@@ -347,7 +371,8 @@ async def tag_secret(
     secret_id: str,
     tags: Dict[str, str],
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Add or update tags on a secret.
@@ -357,6 +382,7 @@ async def tag_secret(
         tags: Tags as key-value pairs (e.g., {"Environment": "prod", "Team": "platform"})
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with tagging status
@@ -365,7 +391,8 @@ async def tag_secret(
         secret_id=secret_id,
         tags=tags,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
@@ -374,7 +401,8 @@ async def untag_secret(
     secret_id: str,
     tag_keys: List[str],
     role_arn: Optional[str] = None,
-    region: Optional[str] = None
+    region: Optional[str] = None,
+    profile: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Remove tags from a secret.
@@ -384,6 +412,7 @@ async def untag_secret(
         tag_keys: List of tag keys to remove
         role_arn: IAM role ARN to assume (for cross-account access)
         region: AWS region (defaults to AWS_REGION env var)
+        profile: AWS profile name from ~/.aws/credentials (for local dev)
     
     Returns:
         Dictionary with untagging status
@@ -392,7 +421,8 @@ async def untag_secret(
         secret_id=secret_id,
         tag_keys=tag_keys,
         role_arn=role_arn,
-        region=region
+        region=region,
+        profile=profile
     )
 
 
