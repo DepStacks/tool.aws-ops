@@ -9,13 +9,13 @@ services:
       - "8100:8000"
     environment:
       - AWS_REGION=${AWS_REGION:-us-east-1}
-      - AWS_PROFILE=${AWS_PROFILE:-igual}
+      - AWS_PROFILE=${AWS_PROFILE:-default}
       - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-dev-token}
-      # Pre-configured account role ARNs
-      - ACCOUNT_PRODUCTION_ROLE_ARN=${ACCOUNT_PRODUCTION_ROLE_ARN:-}
-      - ACCOUNT_STAGING_ROLE_ARN=${ACCOUNT_STAGING_ROLE_ARN:-}
     volumes:
-      # Mount AWS credentials for local development
+      # Mount AWS credentials for multi-company/account support
+      # Use 'profile' parameter in tool calls to switch:
+      #   {"secret_id": "db", "profile": "igual-prod"}
+      #   {"secret_id": "db", "profile": "maistodos-staging"}
       - ~/.aws:/root/.aws:ro
     restart: unless-stopped
     healthcheck:
